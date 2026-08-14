@@ -1,70 +1,76 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Chat</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
-
 <body>
+
     <form id="chat">
         <div class="className">
             <span class="nome" id="nome"><%= nome %></span>
         </div>
-        <div class="message_central">
-            <div  class="messages"></div>
+
+        <div class="messages_central">
+            <div class="messages"></div>
         </div>
-        <input type="text" name="message" placeholder="Digite a mensagem">
-        <button type="submit">Enviar</button>
+
+        <!-- AQUI ESTÁ A CHAVE: Div envolvendo o input e botão -->
+        <div class="chat-input-area">
+            <input type="text" name="message" placeholder="Digite a mensagem" autocomplete="off">
+            <button type="submit">Enviar</button>
+        </div>
     </form>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+    <script>
+        var socket = io('http://localhost:3000');
+        var author = $("#nome").text();
+
+        function renderMessage(m){
+            // Removemos os traços e parênteses manuais que estavam quebrando o layout do balão
+            if(m.author == author){
+                $('.messages').append('<div class="message"><b>' + m.author + '</b>' + m.message + '</div>');
+            } else {
+                $('.messages').append('<div class="message_other"><b>' + m.author + '</b>' + m.message + '</div>');
+            }
+            // Auto-scroll para a última mensagem
+            $('.messages_central').scrollTop($('.messages_central')[0].scrollHeight);
+        }
+
+        socket.on('previousMessages', function(m){
+            for(message of m){
+                renderMessage(message);
+            }
+        });
+
+        socket.on('receivedMessage', function(message){
+            renderMessage(message);
+        });
+
+        $('#chat').submit(function(e) {
+            e.preventDefault();
+            var $input = $('input[name=message]');
+            var message = $input.val().trim();
+
+            if(message === ''){
+                return alert('Preencha o campo antes de enviar');
+            }
+
+            if(author.length && message.length){
+                var messageObject = {
+                    author: author,
+                    message: message,
+                };
+
+                renderMessage(messageObject);
+                socket.emit('sendMessage', messageObject);
+                $input.val(''); // Limpa o campo após o envio
+            }
+        });
+    </script>
 </body>
-
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
-<script type="text/javascript">
-
-    var socket = io('http://localhost:3000');
-    var author = $("#nome").text();
-
-    function renderMessage(m){
-        if(m.author == author){
-            $('.messages').append('<div class="message"><b>'+m.author+'</b> - '+m.message+' a</div>')
-        }else{
-            $('.messages').append('<div class="message_other">'+m.message+' - (<b>'+m.author+'</b>) </div>')
-        }
-    }
-
-    socket.on('previousMessages',function(m){
-        for(message of m){
-            renderMessage(message)
-        }
-    })
-
-    socket.on('receivedMessage', function(message){
-        renderMessage(message);
-    });
-   
-    $('#chat').submit(function(e) {
-        e.preventDefault();
-        var message = $('input[name=message]').val();
-        
-        if(message == ''){
-            alert('Preencha o campo antes de enviar');
-        }
-    
-        if( author.length && message.length){
-            var messageObject  = {
-                author : author,
-                message : message,
-            } 
-
-            renderMessage(messageObject);
-            socket.emit('sendMessage',messageObject);
-        }
-    })
-</script>
-
 </html>
